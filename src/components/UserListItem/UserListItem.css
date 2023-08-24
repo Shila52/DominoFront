@@ -1,0 +1,27 @@
+.user-list-item {
+  list-style: none;
+  padding: 10px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.295);
+  background-color: #fff;
+  border-radius: 20px;
+}
+
+.user-list-item h3 {
+  display: inline-block;
+  margin: 5px;
+}
+
+.user-list-item .letter-circle {
+  display: inline-block;
+  font-size: 1em;
+  width: 2.5em;
+  height: 2.5em;
+  line-height: 2.7em;
+  text-align: center;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 1em;
+  color: #fff;
+  text-transform: capitalize;
+}

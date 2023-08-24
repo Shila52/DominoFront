@@ -1,0 +1,70 @@
+.toolbar {
+  background-color: #fff;
+  border-radius: 20px;
+  padding: 5px 0;
+  margin: 10px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-evenly;
+  width: 100%;
+}
+
+.ui-message {
+  width: 100%;
+  margin: 10px auto;
+  text-align: center;
+}
+
+.ui-message span {
+  display: inline;
+  transition: ease 0.5s;
+  background-color: rgb(5, 117, 230, 0.3);
+  border-radius: 10px;
+  padding: 2px 10px;
+  opacity: 0;
+  color: #fff;
+}
+
+.ui-message.warning span {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.ui-message.info span {
+  background-color: rgb(5, 117, 230, 0.3);
+  color: #fff;
+}
+
+.ui-message.show span {
+  transition: ease 0.5s;
+  opacity: 1;
+}
+
+.ui-message.hide span {
+  transition: ease 0.5s;
+  opacity: 0;
+}
+
+.player-status-container {
+  display: flex;
+}
+
+@media (max-width: 805px) {
+  .toolbar {
+    width: 75%;
+    font-size: 75%;
+  }
+  .player-status-container {
+    max-width: 75%;
+  }
+}
+
+@media (max-width: 602px) {
+  .toolbar {
+    width: 50%;
+    font-size: 50%;
+  }
+  .player-status-container {
+    max-width: 50%;
+  }
+}
