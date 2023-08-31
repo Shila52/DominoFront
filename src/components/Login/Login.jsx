@@ -61,10 +61,14 @@ class Login extends React.Component {
         return token;
       });
       json.token = Token;
-      this.props.setUser(json);
-      localStorage.setItem("user", JSON.stringify(json));
-      this.props.loginSuccessHandler(json);
-      Api.defaults.headers.common = { Authorization: `Bearer ${Token}` };
+      Api.post("users/create", { data: json }).then((res) => {
+        if (res.status == 200) {
+          this.props.setUser(json);
+          localStorage.setItem("user", JSON.stringify(json));
+          this.props.loginSuccessHandler(json);
+          Api.defaults.headers.common = { Authorization: `Bearer ${Token}` };
+        }
+      });
     });
   }
 }

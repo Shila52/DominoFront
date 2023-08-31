@@ -3,88 +3,97 @@ import GameListItem from "../GameListItem/GameListItem.jsx";
 
 import Button from "../Button/Button.jsx";
 import "./GameList.css";
-import Api from "../../Api.js";
-
 
 import { useSelector } from "react-redux";
 import socket from "../../socket.js";
+import Timer from "../Timer/Timer.jsx";
 function GameList(props) {
- 
   const user = useSelector((state) => state.user.user);
-  const [games, setGames] = useState([]);
-  const [Loading, setLoading] = useState(true);
+  const [intervalId, setIntervalId] = useState(null); // Renamed to intervalId
+  const [elapsed, setElapsed] = useState(0);
+  const [gameFound, setgameFound] = useState(false);
+  const [State, setState] = useState(-1);
   useEffect(() => {
-  
-    socket.on("gamelist", (get) => {
-      setLoading(true);
-      setGames(get.data);
-      setLoading(false);
+    if (gameFound === false && State == 3) {
+      console.log("runing it means false");
+      socket.emit("searchForPlayers", { id: user.id });
+    }
+    socket.on("foundPlayer", (get) => {
+      if (get.stop) {
+        clearTimer();
+        setgameFound(true);
+      }
+    });
+    socket.on("getgame", async (data) => {
+      await props.onGameClick(data.id);
     });
   }, [socket]);
 
   useEffect(() => {
-    getGames();
+    socket.emit("makeUseronline", { id: user.id }, (res) => {
+      setState(res.state);
+    });
 
     return () => {
+      clearTimer();
       return null;
     };
   }, []);
-
-  const getGames = async () => {
-    try {
-      setLoading(true);
-      const response = await Api("/games/all", {
-        method: "GET",
-        credentials: "include",
-      });
-      if (response.status !== 200) {
-        throw response;
-      }
-      console.log(response.data);
-      setGames(response.data);
-      setLoading(false);
-    } catch (err) {
-      console.log(err);
-      throw err;
+  const initTimer = () => {
+    if (gameFound === false) {
+      clearTimer(); // Clear the existing interval if any
+      const newIntervalId = setInterval(async () => {
+        setElapsed((prevElapsed) => prevElapsed + 1);
+      }, 1000);
+      setIntervalId(newIntervalId);
     }
   };
+  const clearTimer = () => {
+    clearInterval(intervalId);
+    setIntervalId(null);
+    setElapsed(0);
+  };
+
   const MakeNewGame = async () => {
-    await Api.post("/games/new", {
-      body: {
-        id: user.id,
-      },
-      credentials: "include",
-    }).then((response) => {
-      if (response.status == 200) {
-        socket.emit("getgamelist", { get: true });
-      } else {
-      }
+    socket.emit("makeUserSearching", { id: user.id, coin: 200 }, (res) => {
+      console.log(res);
+      setState(res.state);
     });
-    return false;
+
+    initTimer();
+    setTimeout(() => {
+      socket.emit("searchForPlayers", { coin: 200 });
+    }, 1500);
+  };
+  const Cancel = async () => {
+    socket.emit("makeUseronline", { id: user.id }, (res) => {
+      console.log(res);
+      setState(res.state);
+      clearTimer();
+    });
+
+  
   };
 
   return (
     <React.Fragment>
       <div className="game-list-container">
         <div className="game-list-header">
-          <h2>Games</h2>
-          <Button
-            buttonType="new-game"
-            name="Create a New Game"
-            onClick={MakeNewGame}
-          />
+          <h2>
+            Games{" "}
+            {gameFound && "Games found waiting untill everything get ready "}
+          </h2>
+          {State == 3 && <Timer elapsedSeconds={elapsed} />}
+          {State == 3 ? (
+            <Button buttonType="new-game" name="Cancel" onClick={Cancel} />
+          ) : (
+            <Button
+              buttonType="new-game"
+              name="Search For Game"
+              onClick={MakeNewGame}
+            />
+          )}
         </div>
-        <ul>
-          {Loading
-            ? null
-            : games.map((game, index) => (
-                <GameListItem
-                  game={game}
-                  key={index}
-                  onGameClick={game.active ? () => {} : props.onGameClick}
-                />
-              ))}
-        </ul>
       </div>
     </React.Fragment>
   );

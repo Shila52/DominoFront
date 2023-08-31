@@ -1,18 +1,24 @@
-import React from 'react';
-import './Tile.css';
-import { tilesMap } from '../../TilesMap.js';
+import React, { useEffect } from "react";
+import "./Tile.css";
+import { tilesMap } from "../../TilesMap.js";
 
-const Tile = props => {
-  const renderedClasses = `tile ${props.rotated ? 'rotated' : ''} ${
-    props.placed ? 'placed' : ''
-  } ${props.selected ? 'selected' : ''} ${props.isStock ? 'stock' : ''} ${
-    props.placeholder ? 'placeholder' : ''
-  } ${props.empty ? 'empty' : ''} ${props.rendered ? '' : 'hide'}`;
+
+const Tile = (props) => {
+  const renderedClasses = `tile ${props.rotated ? "rotated" : ""} ${
+    props.placed ? "placed" : ""
+  } ${props.selected ? "selected" : ""} ${props.isStock ? "stock" : ""} ${
+    props.placeholder ? "placeholder" : ""
+  } ${props.empty ? "empty" : ""} ${props.rendered ? "" : "hide"}`;
+  useEffect(() => {
+   
+
+    
+  }, []);
 
   return (
     <div
       className={renderedClasses}
-      onClick={event => props.onTileClick(event, props.placed)}
+      onClick={(event) => props.onTileClick(event, props.placed)}
       data-tile={props.tile}
       id={props.id}
     >
@@ -50,7 +56,7 @@ Tile.defaultProps = {
   placed: false,
   isStock: false,
   tile: 0,
-  rendered: true
+  rendered: true,
 };
 
 export default Tile;

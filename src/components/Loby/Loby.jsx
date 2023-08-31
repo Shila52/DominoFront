@@ -5,11 +5,8 @@ import Button from "../Button/Button.jsx";
 
 import "./Loby.css";
 import Api from "../../Api.js";
-import { io } from "socket.io-client";
 
 import Game from "../Game/Game.jsx";
-import socket from "../../socket.js";
-
 
 class Loby extends React.Component {
   constructor(props) {
@@ -18,30 +15,21 @@ class Loby extends React.Component {
     this.state = {
       showNewGame: false,
       showGame: false,
+      isFinish: false,
       id: 0,
     };
-    
   }
 
-
-
- 
-
+  componentDidMount() {
+    this.setState({ isFinish: false });
+    this.checkAlive();
+  }
   render() {
     return (
       <React.Fragment>
         <div className="loby-header">
           Hello {this.props.user.name}
-          {!this.state.showGame ? (
-            <Button
-              buttonType="logout"
-              name="Logout"
-              onClick={this.props.onUserLoghout.bind(this)}
-            />
-          ) : (
-            ""
-          )}
-          {this.state.id ? (
+          {this.state.isFinish ? (
             <Button
               buttonType="leaveGame"
               name="Back To Loby"
@@ -53,7 +41,7 @@ class Loby extends React.Component {
         </div>
         <React.Fragment>
           {this.state.showGame ? (
-            <Game id={this.state.id} />
+            <Game isFinish={this.onSetFinish.bind(this)} id={this.state.id} />
           ) : (
             <div className="lists-container">
               <GameList mounted onGameClick={this.onGameClick.bind(this)} />
@@ -63,64 +51,71 @@ class Loby extends React.Component {
       </React.Fragment>
     );
   }
-
-  onGameClick(event, id) {
-    // Api(`/users/join/${id}`, {
-    //   method: 'POST',
-    //   credentials: 'include'
-    // })
-    //   .then(response => {
-    //     if (!response.status==200) {
-    //       throw response;
-    //     }
-    //     return response;
-    //   })
-    //   .catch(err => {
-    //     throw err;
-    //   });
-
-    return Api(`/games/${id}/join`, { method: "GET", credentials: "include" })
-      .then((response) => {
-        if (!response.status == 200) {
-          throw response;
-        }
-        return response;
+  onSetFinish() {
+    this.setState({ isFinish: true });
+  }
+  async checkAlive() {
+    try {
+      return await Api.get(`games/alive`, {
+        credentials: "include",
       })
-      .then(() => {
-        
-        socket.emit("getgamelist", { get: true });
-        this.setState({ showGame: true, id });
-      })
-      .catch((err) => {
-        throw err;
-      });
+        .then((response) => {
+          if (!response.status == 200) {
+            throw response;
+          }
+          return response;
+        })
+        .then((res) => {
+          const id = res.data.gameid;
+
+          if (id != null) {
+            this.setState({ showGame: true, id });
+          }
+        });
+    } catch (error) {
+      console.log(error);
+      if (error.response.status == 401) {
+        localStorage.removeItem("user");
+        location.reload();
+      }
+      if (error.response.status == 500) {
+        console.log("another user loged in ");
+        localStorage.removeItem("user");
+        location.reload();
+      }
+    }
+  }
+  async onGameClick(id) {
+    console.log(id);
+    try {
+      if (id != undefined) {
+        return await Api.get(`/games/${id}/join`, {
+          credentials: "include",
+        })
+          .then((response) => {
+            if (!response.status == 200) {
+              throw response;
+            }
+            return response;
+          })
+          .then(() => {
+            this.setState({ showGame: true, id });
+          });
+      }
+    } catch (error) {
+      // localStorage.removeItem("user");
+      // location.reload();
+      console.log(error.status);
+    }
   }
 
   onLeaveGame() {
-    // Api(`/users/leave/${this.state.id}`, {
-    //   method: 'GET',
-    //   credentials: 'include'
-    // })
-    //   .then(response => {
-    //     if (!response.ok) {
-    //       throw response;
-    //     }
-    //     return response;
-    //   })
-    //   .then(() => {
-    //     this.setState({ showGame: false, id: 0 });
-    //   })
-    //   .catch(err => {
-    //     throw err;
-    //   });
-
     Api(`/games/${this.state.id}/leave`, {
       method: "GET",
       credentials: "include",
     }).then((response) => {
       if (response.status == 200) {
-        this.setState({ showGame: false, id: 0 });
-        socket.emit("getgamelist", { get: true });
+        this.setState({ showGame: false, id: 0, isFinish: false });
       }
     });
   }

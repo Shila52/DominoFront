@@ -19,7 +19,6 @@ class Home extends React.Component {
     const check = JSON.parse(localStorage.getItem("user"));
 
     if (check?.token != undefined) {
-     
       this.setState({
         showLogin: false,
         currentUser: { name: check.name },
@@ -37,10 +36,7 @@ class Home extends React.Component {
             loginErrorHandler={this.onLoginError.bind(this)}
           />
         ) : (
-          <Loby
-            user={this.state.currentUser}
-            onUserLoghout={this.onUserLoghout.bind(this)}
-          />
+          <Loby user={this.state.currentUser} />
         )}
       </React.Fragment>
     );
@@ -71,28 +67,14 @@ class Home extends React.Component {
       });
   }
 
-  fetchUserInfo() {
-    return Api("/users", { credentials: "include" }).then((response) => {
+  async fetchUserInfo() {
+    return await Api("/users", { credentials: "include" }).then((response) => {
       if (!response.ok) {
         console.log("Could not fetch users");
         throw response;
       }
       return response.json();
     });
-  }
-
-  onUserLoghout() {
-    fetch("/users/logout", { method: "GET", credentials: "include" }).then(
-      (response) => {
-        if (!response.ok) {
-          console.log(
-            `Failed to logout user ${this.state.currentUser.name} `,
-            response
-          );
-        }
-        this.setState({ currentUser: { name: "" }, showLogin: true });
-      }
-    );
   }
 }
 const mapDispatchToProps = {

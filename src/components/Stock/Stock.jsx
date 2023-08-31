@@ -3,6 +3,7 @@ import Tile from '../Tile/Tile.jsx';
 import './Stock.css';
 
 const Stock = props => {
+
   return (
     <React.Fragment>
       {props.isGameOver || !props.visible ? (

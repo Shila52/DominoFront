@@ -8,8 +8,6 @@ import { connect } from "react-redux";
 import Api from "../../Api.js";
 import socket from "../../socket.js";
 
-const NUM_TILES = 28;
-
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -34,15 +32,36 @@ class Game extends React.Component {
         score: 0,
       },
     };
+    this.showstock = false;
     this.isChangePlayer = false;
   }
-  componentDidMount() {
+  async componentDidMount() {
     this.getGameData();
     socket.emit("jointoroom", {
       id: this.props.id,
       user_id: this.props.user.id,
     });
+    socket.emit("playing", { id: this.props.user.id, gameid: this.props.id });
     socket.on("game", this.handleSocketUpdate);
+    socket.on("userNotReturn", () => {
+      this.showUiMessage("User Doesn't come back u Win The Game", {
+        type: "warning",
+      });
+    });
+    socket.on("returned", ({ name }) => {
+      this.showUiMessage(`${name} Reconnect To The Game`, {
+        type: "warning",
+      });
+    });
+    socket.on("userGoingOffline", () => {
+      this.showUiMessage(
+        "oponent player going offline if not returning in 90 second u win the game ",
+        {
+          type: "warning",
+        }
+      );
+    });
+    this.stopTimer();
   }
   render() {
     return (
@@ -67,8 +86,8 @@ class Game extends React.Component {
               this.state.players.find(
                 (player) => player.id == this.props.user.id
               ).id == this.state.currentPlayer
-                ? "bg-white"
-                : "bg-black"
+                ? ""
+                : "hidden"
             }
              text-slate-900`}
           >
@@ -76,15 +95,17 @@ class Game extends React.Component {
               gameTiles={this.state.gameTiles}
               empty={this.state.gameTiles.length === 0}
               onStockWithdrawal={this.onStockWithdrawal.bind(this)}
-              isGameOver={this.state.isGameOver}
-              visible={this.state.playing}
+              isGameOver={this.state.gameStats.isGameover.result}
+              visible={this.showstock}
             />
+
             <PlayerStack
               playerTiles={this.state.playerTiles}
               selectedTile={this.state.selectedTile}
               setSelectedTile={this.setSelectedTile.bind(this)}
+              boardTiles={this.state.boardTiles}
               onTilePlace={this.onTilePlaced.bind(this)}
-              isGameOver={this.state.isGameOver}
+              isGameOver={this.state.gameStats.isGameover.result}
               visible={this.state.playing}
             />
           </div>
@@ -135,57 +156,415 @@ class Game extends React.Component {
           id: this.props.id,
           user_id: this.props.user.id,
         });
+        this.setState({ elapsedSeconds: 60 });
+        this.stopTimer();
+        this.initTimer();
       })
       .catch((err) => {
         throw err;
       });
   }
+  async checkForTiles(boardTiles, remaintiles, players) {
+    const allTiles = [];
+    const placedTiles = [];
+    let lastFour = [];
+    let first, last;
+    let check = false;
+    await players.forEach(async (player) => {
+      await player.playerTiles.forEach((t) => {
+        allTiles.push(t);
+      });
+    });
+    if (remaintiles.length != 0) {
+      await remaintiles.forEach((t) => allTiles.push(t));
+    }
+    boardTiles &&
+      (await boardTiles.map((tile, index) => {
+        if (tile.placed === true) {
+          placedTiles.push(tile);
+        }
+      }));
 
+    if (placedTiles.length == 0) {
+      return check;
+    } else {
+      if (placedTiles.length > 3) {
+        lastFour = [
+          placedTiles[0].tile,
+          placedTiles[1].tile,
+          placedTiles[placedTiles.length - 2].tile,
+          placedTiles[placedTiles.length - 1].tile,
+        ];
+      } else if (placedTiles.length > 2) {
+        lastFour = [
+          placedTiles[0].tile,
+          placedTiles[1].tile,
+          placedTiles[1].tile,
+          placedTiles[placedTiles.length - 1].tile,
+        ];
+      } else if (placedTiles.length > 1) {
+        lastFour = [
+          placedTiles[0].tile,
+          placedTiles[1].tile,
+          placedTiles[0].tile,
+          placedTiles[1].tile,
+        ];
+      } else if (placedTiles.length > 0) {
+        console.log("o");
+        lastFour = [
+          placedTiles[0].tile,
+          placedTiles[0].tile,
+          placedTiles[0].tile,
+          placedTiles[0].tile,
+        ];
+      }
+      console.log(lastFour[0]);
+      first = tilesMap[lastFour[0]].double
+        ? tilesMap[lastFour[0]].a
+        : this.findUncommonValue(
+            [tilesMap[lastFour[0]]],
+            [tilesMap[lastFour[1]]]
+          );
+
+      last = tilesMap[lastFour[lastFour.length - 1]].double
+        ? tilesMap[lastFour[lastFour.length - 1]].a
+        : this.findUncommonValue(
+            [tilesMap[lastFour[lastFour.length - 1]]],
+            [tilesMap[lastFour[lastFour.length - 2]]]
+          );
+
+      allTiles.forEach((selectedTile, index) => {
+        if (first === tilesMap[selectedTile].a) {
+          check = true;
+        }
+        if (first === tilesMap[selectedTile].b) {
+          check = true;
+        }
+        if (last === tilesMap[selectedTile].a) {
+          check = true;
+        }
+        if (last === tilesMap[selectedTile].b) {
+          check = true;
+        }
+      });
+    }
+
+    return check;
+  }
+  async showStock(boardTiles, players, current) {
+    let check = true;
+    const allTiles = await players.find((p) => p.id == current).playerTiles;
+    const placedTiles = [];
+    let lastFour = [],
+      first,
+      last;
+    boardTiles &&
+      (await boardTiles.map((tile, index) => {
+        if (tile.placed === true) {
+          placedTiles.push(tile);
+        }
+      }));
+    if (placedTiles.length > 3) {
+      console.log("f");
+      lastFour = [
+        placedTiles[0].tile,
+        placedTiles[1].tile,
+        placedTiles[placedTiles.length - 2].tile,
+        placedTiles[placedTiles.length - 1].tile,
+      ];
+    } else if (placedTiles.length > 2) {
+      console.log("th");
+      lastFour = [
+        placedTiles[0].tile,
+        placedTiles[1].tile,
+        placedTiles[1].tile,
+        placedTiles[placedTiles.length - 1].tile,
+      ];
+    } else if (placedTiles.length > 1) {
+      console.log("t");
+      lastFour = [
+        placedTiles[0].tile,
+        placedTiles[1].tile,
+        placedTiles[0].tile,
+        placedTiles[1].tile,
+      ];
+    } else if (placedTiles.length > 0) {
+      console.log("o");
+      lastFour = [
+        placedTiles[0].tile,
+        placedTiles[0].tile,
+        placedTiles[0].tile,
+        placedTiles[0].tile,
+      ];
+    }
+    if (placedTiles.length == 0) {
+      return false;
+    } else {
+      first = tilesMap[lastFour[0]].double
+        ? tilesMap[lastFour[0]].a
+        : this.findUncommonValue(
+            [tilesMap[lastFour[0]]],
+            [tilesMap[lastFour[1]]]
+          );
+      last = tilesMap[lastFour[lastFour.length - 1]].double
+        ? tilesMap[lastFour[lastFour.length - 1]].a
+        : this.findUncommonValue(
+            [tilesMap[lastFour[lastFour.length - 1]]],
+            [tilesMap[lastFour[lastFour.length - 2]]]
+          );
+
+      allTiles.forEach((selectedTile, index) => {
+        if (first === tilesMap[selectedTile].a) {
+          check = false;
+        }
+        if (first === tilesMap[selectedTile].b) {
+          check = false;
+        }
+        if (last === tilesMap[selectedTile].a) {
+          //console.log(tilesMap[placedTiles[0]].a + "");
+          check = false;
+        }
+        if (last === tilesMap[selectedTile].b) {
+          check = false;
+        }
+      });
+    }
+    return check;
+  }
+  async Checkhave() {
+    const stack = this.state.gameTiles;
+    const playerTiles = this.state.playerTiles;
+
+    const boardTiles = this.state.boardTiles;
+
+    let check = false;
+    if (playerTiles.length == 0) {
+      check = true;
+    }
+    if (stack != 0) {
+      check = true;
+    } else {
+      let allTiles = [];
+      playerTiles.forEach((s) => {
+        allTiles.push(s);
+      });
+
+      let placedTiles = [];
+      let lastFour = [],
+        first,
+        last;
+      boardTiles &&
+        (await boardTiles.map((tile, index) => {
+          if (tile.placed === true) {
+            placedTiles.push(tile);
+          }
+        }));
+
+      if (placedTiles.length == 0) {
+        check = true;
+      } else {
+        if (placedTiles.length > 3) {
+          lastFour = [
+            placedTiles[0].tile,
+            placedTiles[1].tile,
+            placedTiles[placedTiles.length - 2].tile,
+            placedTiles[placedTiles.length - 1].tile,
+          ];
+        } else if (placedTiles.length > 2) {
+          lastFour = [
+            placedTiles[0].tile,
+            placedTiles[1].tile,
+            placedTiles[1].tile,
+            placedTiles[placedTiles.length - 1].tile,
+          ];
+        } else if (placedTiles.length > 1) {
+          lastFour = [
+            placedTiles[0].tile,
+            placedTiles[1].tile,
+            placedTiles[0].tile,
+            placedTiles[1].tile,
+          ];
+        } else if (placedTiles.length > 0) {
+          lastFour = [
+            placedTiles[0].tile,
+            placedTiles[0].tile,
+            placedTiles[0].tile,
+            placedTiles[0].tile,
+          ];
+        }
+
+        first = tilesMap[lastFour[0]].double
+          ? tilesMap[lastFour[0]].a
+          : this.findUncommonValue(
+              [tilesMap[lastFour[0]]],
+              [tilesMap[lastFour[1]]]
+            );
+        last = tilesMap[lastFour[lastFour.length - 1]].double
+          ? tilesMap[lastFour[lastFour.length - 1]].a
+          : this.findUncommonValue(
+              [tilesMap[lastFour[lastFour.length - 1]]],
+              [tilesMap[lastFour[lastFour.length - 2]]]
+            );
+
+        allTiles.forEach((selectedTile, index) => {
+          if (first === tilesMap[selectedTile].a) {
+            console.log(1);
+            check = true;
+          }
+          if (first === tilesMap[selectedTile].b) {
+            console.log(2);
+            check = true;
+          }
+          if (last === tilesMap[selectedTile].a) {
+            console.log(3);
+            //console.log(tilesMap[placedTiles[0]].a + "");
+            check = true;
+          }
+          if (last === tilesMap[selectedTile].b) {
+            console.log(4);
+            check = true;
+          }
+        });
+      }
+    }
+
+    return check;
+  }
+  findUncommonValue(arr1, arr2) {
+    const valuesInArr2 = new Set();
+
+    // Store values from arr1 in a Set for efficient lookup
+    for (const obj of arr2) {
+      valuesInArr2.add(obj.a);
+      valuesInArr2.add(obj.b);
+    }
+
+    // Iterate through arr2 and check if the value is in arr1
+    for (const obj of arr1) {
+      if (valuesInArr2.has(obj.a)) {
+        return obj.b; // Return the common value
+      }
+      if (valuesInArr2.has(obj.b)) {
+        return obj.a; // Return the common value
+      }
+    }
+
+    return undefined;
+  }
+  findCommonValue(arr1, arr2) {
+    const valuesInArr1 = new Set();
+
+    // Store values from arr1 in a Set for efficient lookup
+    for (const obj of arr1) {
+      valuesInArr1.add(obj.a);
+      valuesInArr1.add(obj.b);
+    }
+
+    // Iterate through arr2 and check if the value is in arr1
+    for (const obj of arr2) {
+      if (valuesInArr1.has(obj.a)) {
+        return obj.a; // Return the common value
+      }
+      if (valuesInArr1.has(obj.b)) {
+        return obj.b; // Return the common value
+      }
+    }
+
+    return undefined; // No common value found
+  }
   componentWillUnmount() {
     this.stopTimer();
     if (this.timeoutId) {
       clearTimeout(this.timeoutId);
     }
   }
-  handleSocketUpdate = (data) => {
+  handleSocketUpdate = async (data) => {
     let gameData = data.gameData;
-    console.log("socket mounted");
-    console.log(gameData);
-    console.log("------------------------------------------");
+
     if (gameData.$isNew == false) {
       gameData._doc.playerTiles = gameData.playerTiles;
       gameData._doc.stats = gameData.stats;
       gameData = gameData._doc;
     }
-    gameData.playerTiles = gameData.players.find(
-      (p) => p.id == this.props.user.id
-    ).playerTiles;
-    const boardTiles = gameData.boardTiles;
-    this.setState(() => ({
-      ...gameData,
-      stats: this.state.stats,
-      boardTiles,
-    }));
-    this.isChangePlayer = false;
-    if (gameData.active) {
-      this.setState({ active: true });
-      this.setState({ playing: true });
+    if (gameData.gameStats.isGameover.result) {
+      this.showUiMessage("Game Finished you can go back to loby", {
+        type: "warning",
+      });
+      this.setState(() => ({
+        ...gameData,
+      }));
+      this.props.isFinish();
     } else {
-      this.setState({ active: false });
-      this.setState({ playing: false });
+      gameData.playerTiles = gameData.players.find(
+        (p) => p.id == this.props.user.id
+      ).playerTiles;
+      const boardTiles = gameData.boardTiles;
+      this.setState(() => ({
+        ...gameData,
+        stats: this.state.stats,
+        boardTiles,
+      }));
+      this.isChangePlayer = false;
+      const show = await this.showStock(
+        gameData.boardTiles,
+        gameData.players,
+        gameData.currentPlayer
+      );
+      this.showstock = show;
+      if (gameData.active) {
+        this.setState({ active: true });
+        this.setState({ playing: true });
+      } else {
+        this.setState({ active: false });
+        this.setState({ playing: false });
+      }
+      if (gameData.currentPlayer == this.props.user.id) {
+        this.setState({ elapsedSeconds: 60 });
+
+        const check = await this.Checkhave();
+        console.log("check");
+        console.log(
+          check == false && this.props.user.id == this.state.currentPlayer
+        );
+        if (check == false && this.props.user.id == gameData.currentPlayer) {
+          this.showUiMessage("u dont have any tiles We change to other ", {
+            type: "warning",
+          });
+          setTimeout(async () => {
+            this.isChangePlayer = true;
+            await this.makeTurn({ method: "" });
+          }, 2000);
+        }
+        this.stopTimer();
+        this.initTimer();
+      } else {
+        this.stopTimer();
+        this.setState({ elapsedSeconds: 60 });
+      }
     }
   };
 
-  componentDidUpdate(prevProps, prevState) {
+  async componentDidUpdate(prevProps, prevState) {
     if (prevState.active !== this.state.active && this.state.active) {
       this.startGame();
+    }
+    console.log(prevState.elapsedSeconds);
+    if (
+      this.state.currentPlayer == this.props.user.id &&
+      this.state.elapsedSeconds <= 0
+    ) {
+      this.setState({ elapsedSeconds: 60 });
+      this.isChangePlayer = true;
+      await this.makeTurn({ method: "" });
+
+      this.stopTimer();
     }
   }
 
   async startGame() {
     this.showUiMessage("New game started", { type: "info" });
     this.setState({
-      elapsedSeconds: 0,
+      elapsedSeconds: 60,
       isGameOver: false,
       stats: {
         ...this.state.stats,
@@ -196,7 +575,6 @@ class Game extends React.Component {
       },
     });
     this.stopTimer();
-    this.initTimer();
   }
 
   async setSelectedTile(selectedTile) {
@@ -245,39 +623,39 @@ class Game extends React.Component {
             });
           }
 
-          if (tilesMap[tile.tile].double) {
-            if (tilesMap[tile.tile].a === tilesMap[selectedTile].a) {
-              avaiablePositions.push({
-                position: index - NUM_TILES,
-                reversed: true,
-                double: !tilesMap[selectedTile].double,
-              });
-            }
-            if (tilesMap[tile.tile].a === tilesMap[selectedTile].b) {
-              avaiablePositions.push({
-                position: index - NUM_TILES,
-                reversed: false,
-                double: !tilesMap[selectedTile].double,
-              });
-            }
-            if (tilesMap[tile.tile].b === tilesMap[selectedTile].a) {
-              avaiablePositions.push({
-                position: index + NUM_TILES,
-                reversed: false,
-                double: !tilesMap[selectedTile].double,
-              });
-            }
-            if (tilesMap[tile.tile].b === tilesMap[selectedTile].b) {
-              avaiablePositions.push({
-                position: index + NUM_TILES,
-                reversed: true,
-                double: !tilesMap[selectedTile].double,
-              });
-            }
-          }
+          // if (tilesMap[tile.tile].double) {
+          //   if (tilesMap[tile.tile].a === tilesMap[selectedTile].a) {
+          //     avaiablePositions.push({
+          //       position: index - NUM_TILES,
+          //       reversed: true,
+          //       double: !tilesMap[selectedTile].double,
+          //     });
+          //   }
+          //   if (tilesMap[tile.tile].a === tilesMap[selectedTile].b) {
+          //     avaiablePositions.push({
+          //       position: index - NUM_TILES,
+          //       reversed: false,
+          //       double: !tilesMap[selectedTile].double,
+          //     });
+          //   }
+          //   if (tilesMap[tile.tile].b === tilesMap[selectedTile].a) {
+          //     avaiablePositions.push({
+          //       position: index + NUM_TILES,
+          //       reversed: false,
+          //       double: !tilesMap[selectedTile].double,
+          //     });
+          //   }
+          //   if (tilesMap[tile.tile].b === tilesMap[selectedTile].b) {
+          //     avaiablePositions.push({
+          //       position: index + NUM_TILES,
+          //       reversed: true,
+          //       double: !tilesMap[selectedTile].double,
+          //     });
+          //   }
+          // }
         }
       });
-  
+
     await this.clearPlaceholders();
     this.showPlaceholders(avaiablePositions);
   }
@@ -412,43 +790,81 @@ class Game extends React.Component {
     });
 
     // Check game over
-    const isGameOver = this.isGameOver();
+    const isGameOver = await this.isGameOver();
     if (isGameOver.result) {
-      this.onGameOver(isGameOver.winner);
+      this.onGameOver(isGameOver.id);
     }
-
+    this.showstock = false;
     await Api.patch(`/games/${this.props.id}/update`, {
       body: {
         isChangePlayer: this.isChangePlayer,
         playerTiles: this.state.playerTiles,
         boardTiles: this.state.boardTiles,
+        players: this.state.players,
         currentPlayer: this.state.currentPlayer,
         gameTiles: this.state.gameTiles,
-        isGameOver: isGameOver.result,
-        winner: isGameOver.winner,
+        gameStats: {
+          isGameover: isGameOver,
+        },
       },
       credentials: "include",
-    }).then((response) => {
-      if ((response.status = 200)) {
-        socket.emit("sendupdate", {
-          id: this.props.id,
-          user_id: this.props.user.id,
-          gameData: response.data.gameData,
-        });
+    })
+      .then((response) => {
+        if ((response.status = 200)) {
+          socket.emit("sendupdate", {
+            id: this.props.id,
+            user_id: this.props.user.id,
+            gameData: response.data.gameData,
+          });
 
-        this.handleSocketUpdate(response.data);
-      }
-    });
+          this.handleSocketUpdate(response.data);
+        }
+      })
+      .catch((err) => {
+        localStorage.removeItem("user");
+        location.reload();
+      });
     return false;
   }
 
-  isGameOver() {
-    const { gameTiles, playerTiles } = this.state;
+  async isGameOver() {
+    const { gameTiles, playerTiles, boardTiles, players } = this.state;
+    const check = await this.checkForTiles(boardTiles, gameTiles, players);
+    let p1 = 0;
+    let p2 = 0;
+    playerTiles.forEach((t) => {
+      p1 = p1 + tilesMap[t].a + tilesMap[t].b;
+    });
+    players
+      .find((p) => p.id != this.props.user.id)
+      .playerTiles.forEach((t) => {
+        p2 = p2 + tilesMap[t].a + tilesMap[t].b;
+      });
 
-    if (gameTiles.length === 0) {
-      return { result: true, winner: 0 }; // 0 means no one won
+    if (gameTiles.length === 0 && check == false) {
+      console.log("qapat-----------");
+      this.showUiMessage("Qapat!", {
+        type: "info",
+      });
+      setTimeout(() => {
+        if (p1 > p2) {
+          //player 2 win
+          return {
+            result: true,
+            id: players.find((p) => p.id != this.props.user.id).id,
+          };
+        } else if (p1 < p2) {
+          // current player 1 win
+          return { result: true, id: this.props.user.id };
+        } else {
+          //no one win
+          return { result: true, id: "" };
+        }
+      }, 2000);
+
+      // 0 means no one won
     } else if (playerTiles.length === 0) {
-      return { result: true, winner: 1 };
+      return { result: true, id: this.props.user.id };
     }
 
     return { result: false };
@@ -457,7 +873,7 @@ class Game extends React.Component {
   onGameOver(winner) {
     this.setState({ isGameOver: true });
 
-    if (winner) {
+    if (winner == this.props.user.id) {
       this.showUiMessage("GAME OVER! Congratulations, you WON!", {
         type: "info",
       });
@@ -471,7 +887,7 @@ class Game extends React.Component {
 
   initTimer() {
     this.interval = setInterval(() => {
-      this.setState({ elapsedSeconds: this.state.elapsedSeconds + 1 });
+      this.setState({ elapsedSeconds: this.state.elapsedSeconds - 1 });
     }, 1000);
   }
 
