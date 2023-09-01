@@ -27,6 +27,18 @@ function GameList(props) {
     socket.on("getgame", async (data) => {
       await props.onGameClick(data.id);
     });
+    socket.on("allUserOnline", async (data) => {
+      console.log(data);
+    });
+    socket.on("AnotherLogin", async (data) => {
+      if (data.logedout) {
+        console.log("Another One Loged in With ur Account");
+        setTimeout(() => {
+          localStorage.removeItem("user");
+          location.reload();
+        }, 2000);
+      }
+    });
   }, [socket]);
 
   useEffect(() => {
@@ -55,14 +67,13 @@ function GameList(props) {
   };
 
   const MakeNewGame = async () => {
-    socket.emit("makeUserSearching", { id: user.id, coin: 200 }, (res) => {
-      console.log(res);
+    socket.emit("makeUserSearching", { id: user.id, coin: 400 }, (res) => {
       setState(res.state);
     });
 
     initTimer();
     setTimeout(() => {
-      socket.emit("searchForPlayers", { coin: 200 });
+      socket.emit("searchForPlayers", { coin: 400 });
     }, 1500);
   };
   const Cancel = async () => {
@@ -71,8 +82,6 @@ function GameList(props) {
       setState(res.state);
       clearTimer();
     });
-
-  
   };
 
   return (

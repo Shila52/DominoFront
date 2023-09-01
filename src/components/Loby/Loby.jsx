@@ -79,7 +79,7 @@ class Loby extends React.Component {
         location.reload();
       }
       if (error.response.status == 500) {
-        console.log("another user loged in ");
+        
         localStorage.removeItem("user");
         location.reload();
       }

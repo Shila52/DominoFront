@@ -331,11 +331,11 @@ class Game extends React.Component {
     }
     return check;
   }
-  async Checkhave() {
-    const stack = this.state.gameTiles;
-    const playerTiles = this.state.playerTiles;
+  async Checkhave(board, gametile, playertiles) {
+    const stack = gametile;
+    const playerTiles = playertiles;
 
-    const boardTiles = this.state.boardTiles;
+    const boardTiles = board;
 
     let check = false;
     if (playerTiles.length == 0) {
@@ -521,12 +521,21 @@ class Game extends React.Component {
       if (gameData.currentPlayer == this.props.user.id) {
         this.setState({ elapsedSeconds: 60 });
 
-        const check = await this.Checkhave();
-        console.log("check");
-        console.log(
-          check == false && this.props.user.id == this.state.currentPlayer
+        const check = await this.Checkhave(
+          gameData.boardTiles,
+          gameData.gameTiles,
+          gameData.players.find((p) => p.id == this.props.user.id).playerTiles
         );
-        if (check == false && this.props.user.id == gameData.currentPlayer) {
+        const qapat = await this.checkForTiles(
+          gameData.boardTiles,
+          gameData.gameTiles,
+          gameData.players
+        );
+        if (
+          check == false &&
+          this.props.user.id == gameData.currentPlayer &&
+          qapat == true
+        ) {
           this.showUiMessage("u dont have any tiles We change to other ", {
             type: "warning",
           });
@@ -846,7 +855,7 @@ class Game extends React.Component {
       this.showUiMessage("Qapat!", {
         type: "info",
       });
-      setTimeout(() => {
+     
         if (p1 > p2) {
           //player 2 win
           return {
@@ -860,7 +869,7 @@ class Game extends React.Component {
           //no one win
           return { result: true, id: "" };
         }
-      }, 2000);
+      
 
       // 0 means no one won
     } else if (playerTiles.length === 0) {
