@@ -1,7 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import "./Tile.css";
 import { tilesMap } from "../../TilesMap.js";
-
 
 const Tile = (props) => {
   const renderedClasses = `tile ${props.rotated ? "rotated" : ""} ${
@@ -9,12 +8,105 @@ const Tile = (props) => {
   } ${props.selected ? "selected" : ""} ${props.isStock ? "stock" : ""} ${
     props.placeholder ? "placeholder" : ""
   } ${props.empty ? "empty" : ""} ${props.rendered ? "" : "hide"}`;
-  useEffect(() => {
-   
+  //
+  const findCommonValue = (arr1, arr2) => {
+    const valuesInArr1 = new Set();
 
-    
-  }, []);
+    // Store values from arr1 in a Set for efficient lookup
+    for (const obj of arr1) {
+      valuesInArr1.add(obj.a);
+      valuesInArr1.add(obj.b);
+    }
 
+    // Iterate through arr2 and check if the value is in arr1
+    for (const obj of arr2) {
+      if (valuesInArr1.has(obj.a)) {
+        return obj.a; // Return the common value
+      }
+      if (valuesInArr1.has(obj.b)) {
+        return obj.b; // Return the common value
+      }
+    }
+
+    return undefined; // No common value found
+  };
+
+  const findUncommonValue = (arr1, arr2) => {
+    const valuesInArr2 = new Set();
+
+    // Store values from arr1 in a Set for efficient lookup
+    for (const obj of arr2) {
+      valuesInArr2.add(obj.a);
+      valuesInArr2.add(obj.b);
+    }
+
+    // Iterate through arr2 and check if the value is in arr1
+    for (const obj of arr1) {
+      if (valuesInArr2.has(obj.a)) {
+        return obj.b; // Return the common value
+      }
+      if (valuesInArr2.has(obj.b)) {
+        return obj.a; // Return the common value
+      }
+    }
+
+    return undefined;
+  };
+  const FindleftSide = () => {
+    if (props.id > 406) {
+      if (props.prevId < props.id) {
+        return findCommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      } else {
+        return findUncommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      }
+    } else {
+      if (props.prevId < props.id) {
+        return findCommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      } else {
+        return findUncommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      }
+    }
+  };
+  const FindRightSide = () => {
+    if (props.id > 406) {
+      if (props.prevId < props.id) {
+        return findUncommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      } else {
+        return findCommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      }
+    } else {
+      if (props.prevId < props.id) {
+        return findUncommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      } else {
+        return findCommonValue(
+          [tilesMap[props.tile]],
+          [tilesMap[props.prevTile]]
+        );
+      }
+    }
+  };
+  //
   return (
     <div
       className={renderedClasses}
@@ -24,7 +116,8 @@ const Tile = (props) => {
     >
       <div
         className={`side-a tile-${
-          props.reversed ? tilesMap[props.tile].b : tilesMap[props.tile].a
+          props.prevTile != undefined ? FindleftSide() : tilesMap[props.tile].a
+          //  props.reversed ? tilesMap[props.tile].b : tilesMap[props.tile].a
         }`}
       >
         <span className="dot dot-1" />
@@ -37,7 +130,7 @@ const Tile = (props) => {
       <div className="divider" />
       <div
         className={`side-b tile-${
-          props.reversed ? tilesMap[props.tile].a : tilesMap[props.tile].b
+          props.prevTile != undefined ? FindRightSide() : tilesMap[props.tile].b
         }`}
       >
         <span className="dot dot-1" />

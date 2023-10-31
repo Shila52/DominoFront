@@ -8,21 +8,30 @@ import Api from "../../Api.js";
 
 import Game from "../Game/Game.jsx";
 
+import Purchase_detail from "./PurchaseDetail.jsx";
+import Dashboard from "./Dashboard.jsx";
+import Shop from "./Shop.jsx";
+import Withdraw from "./Withdraw.jsx";
+import Bot from "../Game/Bot.jsx";
+
 class Loby extends React.Component {
   constructor(props) {
     super(props);
 
     this.state = {
+      loading: false,
       showNewGame: false,
       showGame: false,
       isFinish: false,
       id: 0,
+      Pucrhase: null,
+      Coins: 0,
     };
   }
 
-  componentDidMount() {
+  async componentDidMount() {
     this.setState({ isFinish: false });
-    this.checkAlive();
+    await this.LastMatch();
   }
   render() {
     return (
@@ -47,6 +56,7 @@ class Loby extends React.Component {
               <GameList mounted onGameClick={this.onGameClick.bind(this)} />
             </div>
           )}
+          {/* <Withdraw /> */}
         </React.Fragment>
       </React.Fragment>
     );
@@ -54,9 +64,23 @@ class Loby extends React.Component {
   onSetFinish() {
     this.setState({ isFinish: true });
   }
-  async checkAlive() {
+  async MakeOrder() {
+    console.log("running");
+    this.setState({ loading: true });
+    await Api.post(`/users/generatePayments`, {
+      data: { TotalAmount: this.state.Coins, PaymentOption: "USDT" },
+      credentials: "include",
+    })
+      .then((res) => {
+        this.setState({ Pucrhase: res.data, loading: false });
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }
+  async LastMatch() {
     try {
-      return await Api.get(`games/alive`, {
+      return await Api.get(`games/lastmatch`, {
         credentials: "include",
       })
         .then((response) => {
@@ -79,34 +103,42 @@ class Loby extends React.Component {
         location.reload();
       }
       if (error.response.status == 500) {
-        
         localStorage.removeItem("user");
         location.reload();
       }
     }
   }
+
   async onGameClick(id) {
-    console.log(id);
-    try {
-      if (id != undefined) {
-        return await Api.get(`/games/${id}/join`, {
-          credentials: "include",
-        })
-          .then((response) => {
-            if (!response.status == 200) {
-              throw response;
-            }
-            return response;
-          })
-          .then(() => {
-            this.setState({ showGame: true, id });
-          });
-      }
-    } catch (error) {
-      // localStorage.removeItem("user");
-      // location.reload();
-      console.log(error.status);
-    }
+    // we are directly get id of game and every thing gooing correct
+    this.setState({ showGame: true, id });
+    // console.log(id);
+    // try {
+    //   if (id != undefined) {
+    //     return await Api.get(`/games/${id}/join`, {
+    //       credentials: "include",
+    //     })
+    //       .then((response) => {
+    //         if (response.status == 201) {
+    //           setTimeout(() => {
+    //             console.log("re run ");
+    //             this.onGameClick(id);
+    //           }, 500);
+    //         }
+    //         if (!response.status == 200 && !response.status == 201) {
+    //           throw response;
+    //         }
+    //         return response;
+    //       })
+    //       .then(() => {
+
+    //       });
+    //   }
+    // } catch (error) {
+    //   // localStorage.removeItem("user");
+    //   // location.reload();
+    //   console.log(error.status);
+    // }
   }
 
   onLeaveGame() {

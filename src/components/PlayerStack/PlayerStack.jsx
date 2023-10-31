@@ -16,7 +16,7 @@ const PlayerStack = (props) => {
     const fetchTileAvailability = async () => {
       const availability = await Promise.all(
         props.playerTiles.map(async (tile) =>
-          (await availableTile(props.boardTiles, tile)) ? tile : null
+          (await availableTile(props.OrderedPlacedTiles, tile)) ? tile : null
         )
       );
       setTileAvailability(availability);
@@ -45,18 +45,13 @@ const PlayerStack = (props) => {
 
     return undefined;
   };
-  const availableTile = async (boardTiles, selectedTile) => {
+  const availableTile = async (OrderedPlacedTiles, selectedTile) => {
     let check = false;
-    const placedTiles = [];
+    const placedTiles = OrderedPlacedTiles;
     let lastFour = [],
       first,
       last;
 
-    await boardTiles.map((tile, index) => {
-      if (tile.placed === true) {
-        placedTiles.push(tile);
-      }
-    });
     if (placedTiles.length > 3) {
       console.log("f");
       lastFour = [
@@ -93,6 +88,9 @@ const PlayerStack = (props) => {
 
     if (placedTiles.length == 0) {
       return true;
+    } else if (placedTiles.length == 1) {
+      first = tilesMap[lastFour[0]].a;
+      last = tilesMap[lastFour[0]].b;
     } else {
       first = (await tilesMap[lastFour[0]].double)
         ? tilesMap[lastFour[0]].a
@@ -103,21 +101,21 @@ const PlayerStack = (props) => {
             [tilesMap[lastFour[lastFour.length - 1]]],
             [tilesMap[lastFour[lastFour.length - 2]]]
           );
-
-      if (first === tilesMap[selectedTile].a) {
-        check = true;
-      }
-      if (first === tilesMap[selectedTile].b) {
-        check = true;
-      }
-      if (last === tilesMap[selectedTile].a) {
-        //console.log(tilesMap[placedTiles[0]].a + "");
-        check = true;
-      }
-      if (last === tilesMap[selectedTile].b) {
-        check = true;
-      }
     }
+    if (first === tilesMap[selectedTile].a) {
+      check = true;
+    }
+    if (first === tilesMap[selectedTile].b) {
+      check = true;
+    }
+    if (last === tilesMap[selectedTile].a) {
+      //console.log(tilesMap[placedTiles[0]].a + "");
+      check = true;
+    }
+    if (last === tilesMap[selectedTile].b) {
+      check = true;
+    }
+
     return check;
   };
 

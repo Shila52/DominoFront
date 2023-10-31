@@ -7,6 +7,7 @@ import "./GameList.css";
 import { useSelector } from "react-redux";
 import socket from "../../socket.js";
 import Timer from "../Timer/Timer.jsx";
+import Api from "../../Api.js";
 function GameList(props) {
   const user = useSelector((state) => state.user.user);
   const [intervalId, setIntervalId] = useState(null); // Renamed to intervalId
@@ -14,10 +15,10 @@ function GameList(props) {
   const [gameFound, setgameFound] = useState(false);
   const [State, setState] = useState(-1);
   useEffect(() => {
-    if (gameFound === false && State == 3) {
-      console.log("runing it means false");
-      socket.emit("searchForPlayers", { id: user.id });
-    }
+    // if (gameFound === false && State == 3) {
+    //   console.log("runing it means false");
+    //   socket.emit("searchForPlayers", { id: user.id });
+    // }
     socket.on("foundPlayer", (get) => {
       if (get.stop) {
         clearTimer();
@@ -67,14 +68,15 @@ function GameList(props) {
   };
 
   const MakeNewGame = async () => {
-    socket.emit("makeUserSearching", { id: user.id, coin: 400 }, (res) => {
-      setState(res.state);
-    });
+    try {
+      initTimer();
+      setState(3);
+      const response = await Api.post("games/generategame", { coins: 400 });
 
-    initTimer();
-    setTimeout(() => {
-      socket.emit("searchForPlayers", { coin: 400 });
-    }, 1500);
+      await props.onGameClick(response.data.gameid);
+    } catch (error) {
+      console.log(error);
+    }
   };
   const Cancel = async () => {
     socket.emit("makeUseronline", { id: user.id }, (res) => {
@@ -83,6 +85,7 @@ function GameList(props) {
       clearTimer();
     });
   };
+ 
 
   return (
     <React.Fragment>

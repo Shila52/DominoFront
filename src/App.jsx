@@ -4,7 +4,6 @@ import { createStore, combineReducers } from "redux";
 import userReducer from "./UserRedux";
 import { Provider } from "react-redux";
 
-
 const rootReducer = combineReducers({
   user: userReducer,
 });
@@ -15,6 +14,7 @@ const App = () => {
   return (
     <Provider store={store}>
       <div className="w-full ">
+        <div id="recaptcha-container"></div>
         <Home />
       </div>
     </Provider>
